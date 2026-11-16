@@ -1,264 +1,227 @@
-/**
-* Template Name: MyResume - v4.7.0
-* Template URL: https://bootstrapmade.com/free-html-bootstrap-template-my-resume/
-* Author: BootstrapMade.com
-* License: https://bootstrapmade.com/license/
-*/
-(function() {
+/*==============================================================
+  Ijas Ahammed M — Portfolio scripts
+==============================================================*/
+
+/* ---------- Global actions (used by onclick handlers) ---------- */
+function download() {
+  Swal.fire({
+    title: "Download my CV?",
+    showDenyButton: true,
+    showCancelButton: true,
+    confirmButtonText: "Download",
+    denyButtonText: "View"
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const a = document.createElement("a");
+      a.href = "assets/cv/IJAS.pdf";
+      a.download = "IJAS_AHAMMED_M_CV.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } else if (result.isDenied) {
+      window.open("assets/cv/IJAS.pdf", "_blank");
+    }
+  });
+}
+
+function contact() {
+  const whatsappNumber = "971521233005";
+  const message = encodeURIComponent("Hello!");
+  window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
+}
+
+function validation() {
+  const email = document.getElementById("email").value.trim();
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (emailRegex.test(email)) return true;
+  Swal.fire({ title: "Please enter a valid email address", icon: "info", confirmButtonText: "Close" });
+  return false;
+}
+
+function sendmail() {
+  const mail = $("#email").val().trim();
+  const name = $("#name").val().trim();
+  const sub = $("#subject").val().trim();
+  const message = $("#message").val().trim();
+
+  if (!mail || !name || !sub || !message) {
+    Swal.fire({ title: "Please fill in all fields", icon: "info", confirmButtonText: "Close" });
+    return false;
+  }
+  if (!validation()) return false;
+
+  $.ajax({
+    type: "POST",
+    contentType: "application/json; charset=utf-8",
+    url: "Index.aspx/sendmail",
+    data: JSON.stringify({ email: mail, name: name, subject: sub, message: message }),
+    dataType: "json",
+    success: () => {
+      Swal.fire({ title: "Message sent", text: "Thanks, I'll get back to you soon.", icon: "success", confirmButtonText: "Close" });
+      $("#name, #email, #subject, #message").val("");
+    },
+    error: (xhr, status, error) => {
+      console.error(xhr, status, error);
+      Swal.fire({ title: "Couldn't send the message", text: "Please email or WhatsApp me directly.", icon: "error", confirmButtonText: "Close" });
+    }
+  });
+  return false;
+}
+
+/* ---------- Page behaviour ---------- */
+(function () {
   "use strict";
 
-  /**
-   * Easy selector helper function
-   */
-  const select = (el, all = false) => {
-    el = el.trim()
-    if (all) {
-      return [...document.querySelectorAll(el)]
-    } else {
-      return document.querySelector(el)
+  const $1 = (s, r = document) => r.querySelector(s);
+  const $all = (s, r = document) => [...r.querySelectorAll(s)];
+  const body = document.body;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const yearEl = $1("#year");
+  if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+  /* Count-up */
+  const countUp = (el) => {
+    const target = +el.dataset.count;
+    if (reduceMotion) { el.textContent = target; return; }
+    const start = performance.now();
+    const step = (now) => {
+      const p = Math.min((now - start) / 1400, 1);
+      el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+
+  /* Reveal on scroll */
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add("in-view");
+      if (entry.target.matches(".count")) countUp(entry.target);
+      io.unobserve(entry.target);
+    });
+  }, { threshold: 0.15, rootMargin: "0px 0px -6% 0px" });
+
+  $all(".tile").forEach((t, i) => t.style.setProperty("--i", i));
+
+  /* Preloader -> start hero animation */
+  let started = false;
+  const start = () => {
+    if (started) return;
+    started = true;
+    const pre = $1("#preloader");
+    if (pre) {
+      pre.classList.add("done");
+      setTimeout(() => pre.remove(), 700);
     }
+    body.classList.add("ready");
+    $all(".reveal, .sec-head, .tiles, .count").forEach((el) => io.observe(el));
+  };
+  window.addEventListener("load", () => setTimeout(start, 300));
+  setTimeout(start, 3500); // safety net if something is slow to load
+
+  /* Header state, active link, back-to-top */
+  const header = $1("#header");
+  const toTop = $1(".to-top");
+  const links = $all(".nav-link");
+  const sections = links.map((l) => $1(l.getAttribute("href"))).filter(Boolean);
+
+  /* About statement: words light up as you scroll */
+  const statement = $1("[data-words]");
+  let words = [];
+  if (statement) {
+    const highlight = new Set([".NET", "Developer", "deadline,", "shipped."]);
+    const parts = statement.textContent.trim().split(/\s+/);
+    statement.textContent = "";
+    parts.forEach((w, i) => {
+      const span = document.createElement("span");
+      span.className = "w" + (highlight.has(w) ? " hl" : "");
+      span.textContent = w;
+      statement.appendChild(span);
+      if (i < parts.length - 1) statement.appendChild(document.createTextNode(" "));
+    });
+    words = $all(".w", statement);
   }
 
-  /**
-   * Easy event listener function
-   */
-  const on = (type, el, listener, all = false) => {
-    let selectEl = select(el, all)
-    if (selectEl) {
-      if (all) {
-        selectEl.forEach(e => e.addEventListener(type, listener))
-      } else {
-        selectEl.addEventListener(type, listener)
-      }
+  let ticking = false;
+  const update = () => {
+    const y = window.scrollY;
+    header.classList.toggle("scrolled", y > 30);
+    toTop.classList.toggle("show", y > 500);
+
+    const mark = y + window.innerHeight * 0.4;
+    let current = sections[0];
+    sections.forEach((s) => { if (s.offsetTop <= mark) current = s; });
+    links.forEach((l) => l.classList.toggle("active", l.getAttribute("href") === "#" + current.id));
+
+    if (statement) {
+      const r = statement.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const p = Math.min(Math.max((vh * 0.85 - r.top) / (r.height + vh * 0.3), 0), 1);
+      const lit = Math.round(p * words.length);
+      words.forEach((w, i) => w.classList.toggle("on", i < lit));
     }
+    ticking = false;
+  };
+  window.addEventListener("scroll", () => {
+    if (!ticking) { ticking = true; requestAnimationFrame(update); }
+  }, { passive: true });
+  window.addEventListener("resize", update);
+  update();
+
+  /* Mobile menu */
+  const toggle = $1("#menuToggle");
+  const setMenu = (open) => {
+    body.classList.toggle("menu-open", open);
+    body.classList.toggle("locked", open);
+    toggle.setAttribute("aria-expanded", String(open));
+  };
+  toggle.addEventListener("click", () => setMenu(!body.classList.contains("menu-open")));
+  links.forEach((l) => l.addEventListener("click", () => setMenu(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setMenu(false); });
+
+  /* Auto-update: if a newer version is published, refresh open pages.
+     Checks when the tab comes back into view and every 3 minutes. */
+  const versionMeta = $1('meta[name="site-version"]');
+  if (versionMeta && location.protocol.startsWith("http")) {
+    const current = versionMeta.content;
+    const formHasText = () => $all(".contact-form input, .contact-form textarea").some((f) => f.value.trim());
+    const checkVersion = async () => {
+      try {
+        const res = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
+        if (!res.ok) return;
+        const { version } = await res.json();
+        if (!version || version === current) return;
+        if (!formHasText()) {
+          location.reload();
+        } else if (!$1(".update-toast")) {
+          const toast = document.createElement("button");
+          toast.type = "button";
+          toast.className = "update-toast";
+          toast.innerHTML = '<i class="bi bi-arrow-clockwise"></i> New version available — tap to refresh';
+          toast.addEventListener("click", () => location.reload());
+          body.appendChild(toast);
+        }
+      } catch (err) { /* offline: try again later */ }
+    };
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) checkVersion(); });
+    setInterval(checkVersion, 3 * 60 * 1000);
   }
 
-  /**
-   * Easy on scroll event listener 
-   */
-  const onscroll = (el, listener) => {
-    el.addEventListener('scroll', listener)
-  }
-
-  /**
-   * Navbar links active state on scroll
-   */
-  let navbarlinks = select('#navbar .scrollto', true)
-  const navbarlinksActive = () => {
-    let position = window.scrollY + 200
-    navbarlinks.forEach(navbarlink => {
-      if (!navbarlink.hash) return
-      let section = select(navbarlink.hash)
-      if (!section) return
-      if (position >= section.offsetTop && position <= (section.offsetTop + section.offsetHeight)) {
-        navbarlink.classList.add('active')
-      } else {
-        navbarlink.classList.remove('active')
+  /* Copy email */
+  const copyBtn = $1("#copyMail");
+  if (copyBtn) {
+    const hint = $1(".copy-hint", copyBtn);
+    copyBtn.addEventListener("click", async () => {
+      const mail = copyBtn.dataset.mail;
+      try {
+        await navigator.clipboard.writeText(mail);
+        hint.textContent = "Copied ✓";
+        setTimeout(() => { hint.textContent = "Copy"; }, 2000);
+      } catch (err) {
+        window.location.href = "mailto:" + mail;
       }
-    })
-  }
-  window.addEventListener('load', navbarlinksActive)
-  onscroll(document, navbarlinksActive)
-
-  /**
-   * Scrolls to an element with header offset
-   */
-  const scrollto = (el) => {
-    let elementPos = select(el).offsetTop
-    window.scrollTo({
-      top: elementPos,
-      behavior: 'smooth'
-    })
-  }
-
-  /**
-   * Back to top button
-   */
-  let backtotop = select('.back-to-top')
-  if (backtotop) {
-    const toggleBacktotop = () => {
-      if (window.scrollY > 100) {
-        backtotop.classList.add('active')
-      } else {
-        backtotop.classList.remove('active')
-      }
-    }
-    window.addEventListener('load', toggleBacktotop)
-    onscroll(document, toggleBacktotop)
-  }
-
-  /**
-   * Mobile nav toggle
-   */
-  on('click', '.mobile-nav-toggle', function(e) {
-    select('body').classList.toggle('mobile-nav-active')
-    this.classList.toggle('bi-list')
-    this.classList.toggle('bi-x')
-  })
-
-  /**
-   * Scrool with ofset on links with a class name .scrollto
-   */
-  on('click', '.scrollto', function(e) {
-    if (select(this.hash)) {
-      e.preventDefault()
-
-      let body = select('body')
-      if (body.classList.contains('mobile-nav-active')) {
-        body.classList.remove('mobile-nav-active')
-        let navbarToggle = select('.mobile-nav-toggle')
-        navbarToggle.classList.toggle('bi-list')
-        navbarToggle.classList.toggle('bi-x')
-      }
-      scrollto(this.hash)
-    }
-  }, true)
-
-  /**
-   * Scroll with ofset on page load with hash links in the url
-   */
-  window.addEventListener('load', () => {
-    if (window.location.hash) {
-      if (select(window.location.hash)) {
-        scrollto(window.location.hash)
-      }
-    }
-  });
-
-  /**
-   * Preloader
-   */
-  let preloader = select('#preloader');
-  if (preloader) {
-    window.addEventListener('load', () => {
-      preloader.remove()
     });
   }
-
-  /**
-   * Hero type effect
-   */
-  const typed = select('.typed')
-  if (typed) {
-    let typed_strings = typed.getAttribute('data-typed-items')
-    typed_strings = typed_strings.split(',')
-    new Typed('.typed', {
-      strings: typed_strings,
-      loop: true,
-      typeSpeed: 100,
-      backSpeed: 50,
-      backDelay: 2000
-    });
-  }
-
-  /**
-   * Skills animation
-   */
-  let skilsContent = select('.skills-content');
-  if (skilsContent) {
-    new Waypoint({
-      element: skilsContent,
-      offset: '80%',
-      handler: function(direction) {
-        let progress = select('.progress .progress-bar', true);
-        progress.forEach((el) => {
-          el.style.width = el.getAttribute('aria-valuenow') + '%'
-        });
-      }
-    })
-  }
-
-  /**
-   * Porfolio isotope and filter
-   */
-  window.addEventListener('load', () => {
-    let portfolioContainer = select('.portfolio-container');
-    if (portfolioContainer) {
-      let portfolioIsotope = new Isotope(portfolioContainer, {
-        itemSelector: '.portfolio-item'
-      });
-
-      let portfolioFilters = select('#portfolio-flters li', true);
-
-      on('click', '#portfolio-flters li', function(e) {
-        e.preventDefault();
-        portfolioFilters.forEach(function(el) {
-          el.classList.remove('filter-active');
-        });
-        this.classList.add('filter-active');
-
-        portfolioIsotope.arrange({
-          filter: this.getAttribute('data-filter')
-        });
-        portfolioIsotope.on('arrangeComplete', function() {
-          AOS.refresh()
-        });
-      }, true);
-    }
-
-  });
-
-  /**
-   * Initiate portfolio lightbox 
-   */
-  const portfolioLightbox = GLightbox({
-    selector: '.portfolio-lightbox'
-  });
-
-  /**
-   * Initiate portfolio details lightbox 
-   */
-  const portfolioDetailsLightbox = GLightbox({
-    selector: '.portfolio-details-lightbox',
-    width: '90%',
-    height: '90vh'
-  });
-
-  /**
-   * Portfolio details slider
-   */
-  new Swiper('.portfolio-details-slider', {
-    speed: 400,
-    loop: true,
-    autoplay: {
-      delay: 5000,
-      disableOnInteraction: false
-    },
-    pagination: {
-      el: '.swiper-pagination',
-      type: 'bullets',
-      clickable: true
-    }
-  });
-
-  /**
-   * Testimonials slider
-   */
-  new Swiper('.testimonials-slider', {
-    speed: 600,
-    loop: true,
-    autoplay: {
-      delay: 5000,
-      disableOnInteraction: false
-    },
-    slidesPerView: 'auto',
-    pagination: {
-      el: '.swiper-pagination',
-      type: 'bullets',
-      clickable: true
-    }
-  });
-
-  /**
-   * Animation on scroll
-   */
-  window.addEventListener('load', () => {
-    AOS.init({
-      duration: 1000,
-      easing: 'ease-in-out',
-      once: true,
-      mirror: false
-    })
-  });
-
-})()
+})();
